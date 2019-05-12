@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="MCRTAPlugin:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/MCRTAPlugin_jar</output-path>
+    <root id="archive" name="MCRTAPlugin.jar">
+      <element id="module-output" name="MCRTAPlugin" />
+    </root>
+  </artifact>
+</component>

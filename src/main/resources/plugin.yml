@@ -1,0 +1,7 @@
+name: MCRTAPlugin
+version: ${project.version}
+main: com.github.cosinefomula.mcrtaplugin.MCRTAPlugin
+api-version: 1.13
+commands:
+  rta:
+    permission: op
