@@ -1,6 +1,8 @@
 package com.github.cosinefomula.mcrtaplugin;
 
 
+
+import com.sun.istack.internal.NotNull;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -9,27 +11,26 @@ import org.bukkit.entity.EnderDragon;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
-import java.util.Objects;
-
 
 public final class MCRTAPlugin extends JavaPlugin implements Listener {
-    Objective objective;
-    RTAManager rtaManager;
-
+    private static boolean rtaplay;
+    private Objective objective;
+    private RTAManager rtaManager;
+    private Scoreboard scoreboard;
     @Override
     public void onEnable() {
-        // Plugin startup login
+        // Plugin startup logic
         ScoreboardManager manager = Bukkit.getServer().getScoreboardManager();
-        Scoreboard scoreboard = manager.getMainScoreboard();
+        scoreboard = manager. getNewScoreboard();
         if(scoreboard.getObjective("RTATimer") != null){
             objective = scoreboard.getObjective("RTATimer");
         }else {
             objective = scoreboard.registerNewObjective("RTATimer", "dummy", "RTATimer");
-            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
             Score score = objective.getScore("RTA-Time");
             Score score2 = objective.getScore("RTA-FinishTime");
             score.setScore(0);
@@ -46,39 +47,51 @@ public final class MCRTAPlugin extends JavaPlugin implements Listener {
     }
     @Override
     public boolean onCommand(CommandSender sender, Command command,String label,String[] args){
-        switch (label){
-            case "rta":
-                switch (args[0]){
-                    case"start":
+        if ("rta".equals(label)) {
+            switch (args[0]) {
+                case "start":
+                    if(rtaplay) {
                         rtaStart(sender);
-                        break;
-                    case"stop":
-                        if(rtaManager != null){
-                            rtaManager.cancel();
-                            rtaManager = null;
-                        }else{
-                            sender.sendMessage("タイマーはもう止まってるはずです");
-                        }
-                        break;
-                    case"lap":
+                    }
+                    break;
+                case "stop":
+                    if (rtaManager != null) {
+                        rtaManager.cancel();
+                        rtaManager = null;
+                    } else {
+                        sender.sendMessage("タイマーは止まっています");
+                    }
+                    break;
+                case "lap":
+                    if(rtaplay) {
                         sender.sendMessage(timeChange(objective.getScore("RTA-Time").getScore()));
-                        break;
-                    case"reset":
-                        if(rtaManager == null) {
-                            objective.getScore("RTA-Time").setScore(0);
-                            objective.getScore("RTA-FinishTime").setScore(0);
-                        }else{
-                            sender.sendMessage("まだカウントが行われています");
-                        }
-                        break;
-                }
-                break;
-            default:return false;
+                    }
+                    break;
+                case "reset":
+                    if (rtaManager == null) {
+                        objective.getScore("RTA-Time").setScore(0);
+                        objective.getScore("RTA-FinishTime").setScore(0);
+                    } else {
+                        sender.sendMessage("まだカウントが行われています");
+                    }
+                    break;
+                case "ready":
+                    objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+                    getServer().getOnlinePlayers().forEach(player -> player.setScoreboard(scoreboard));
+                    rtaplay = true;
+                    break;
+                case "off":
+                    objective.setDisplaySlot(null);
+                    rtaplay = false;
+                    break;
+            }
+        } else {
+            return false;
         }
         return false;
     }
 
-    public void rtaStart(CommandSender sender){
+    private void rtaStart(CommandSender sender){
         if(rtaManager == null) {
             if (objective.getScore("RTA-Time").getScore() == 0){
                 new BukkitRunnable(){
@@ -97,7 +110,7 @@ public final class MCRTAPlugin extends JavaPlugin implements Listener {
                             getServer().getOnlinePlayers().forEach(
                                     player -> player.sendTitle
                                             (ChatColor.BLUE +"Start",
-                                                    ChatColor.BLUE+"手段は問わない、ヤツを倒せ",
+                                                    "手段は問わない、ヤツを倒せ",
                                                     5,20,10));
                             this.cancel();
                         }
@@ -110,6 +123,7 @@ public final class MCRTAPlugin extends JavaPlugin implements Listener {
             rtaManager.runTaskTimer(this,0L,20L);
             sender.sendMessage("タイマー起動");
             }
+
         }else{
             sender.sendMessage("タイマーはもう起動してます");
         }
@@ -122,17 +136,21 @@ public final class MCRTAPlugin extends JavaPlugin implements Listener {
             int finish = objective.getScore("RTA-Time").getScore();
             objective.getScore("RTA-FinishTime").setScore(finish);
             String time = timeChange(finish);
-            getServer().getOnlinePlayers().forEach(
-                    player -> Objects.requireNonNull(player.getPlayer()).sendTitle
-                            ("§aFinish","§eTime:"+time,10,100,10));
+            getServer().getOnlinePlayers().forEach(player -> player.sendTitle(
+                            "§aFinish","§eTime:"+time,10,100,10));
         }
     }
-    public static String timeChange(int i){
+    @EventHandler
+    public void joinEvent(PlayerJoinEvent event){
+        if(rtaplay){
+            event.getPlayer().setScoreboard(scoreboard);
+        }
+    }
+    private static String timeChange(int i){
         int hour = i/3600;
         int min = i%3600/60;
         int sec = i%3600%60;
-        String result = hour+"hour"+min+"min"+sec+"sec.";
-        return  result;
+        return hour+"hour"+min+"min"+sec+"sec.";
     }
 }
 
